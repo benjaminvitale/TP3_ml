@@ -12,6 +12,10 @@ target_2 = []
 target_3 = []
 target_4 = []
 
+Data_test = []
+
+target_test = []
+
 
 with open('breast_cancer_data/breast_cancer_dev.csv', mode='r', newline='') as file:
     csv_reader = csv.reader(file)
@@ -61,4 +65,19 @@ for i in range(len(Data_2)):
 
 smote = SMOTE(sampling_strategy='auto', random_state=42)
 Data_4, target_4 = smote.fit_resample(Data_4, target_4)
-print(target_1)
+
+
+with open('breast_cancer_data/breast_cancer_test.csv', mode='r', newline='') as file:
+    csv_reader = csv.reader(file)
+    i = 0
+    
+    for row in csv_reader:
+        if i != 0:
+            Data_test.append(row[:-1])
+            target_test.append(int(row[-1]))
+        i += 1
+
+
+for i in range(len(Data_test)):
+    for j in range(6):
+        Data_test[i][j] = float(Data_test[i][j])

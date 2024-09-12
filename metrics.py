@@ -1,56 +1,79 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-def confusion_matrix_custom(y_true, y_pred):
+def confusion_matrix(y_true, y_pred):
     """
     Calcula la matriz de confusión.
+    y_true: Vector de etiquetas verdaderas
+    y_pred: Matriz de probabilidades predichas
     """
-    TP = np.sum((y_true == 1) & (y_pred == 1))
-    TN = np.sum((y_true == 0) & (y_pred == 0))
-    FP = np.sum((y_true == 0) & (y_pred == 1))
-    FN = np.sum((y_true == 1) & (y_pred == 0))
-    return np.array([[TN, FP], [FN, TP]])
+    y_true = np.asarray(y_true)
+    y_true.reshape(-1,1)
+    y_pred = np.asarray(y_pred)
+    
+    y_pred_classes = np.argmax(y_pred, axis=1)
+    
+    tp = np.sum((y_true == 1) & (y_pred_classes == 1))
+    fp = np.sum((y_true == 0) & (y_pred_classes == 1))
+    fn = np.sum((y_true == 1) & (y_pred_classes == 0))
+    tn = np.sum((y_true == 0) & (y_pred_classes == 0))
+    return np.array([[tp, fp], [fn, tn]])
 
-def accuracy_custom(y_true, y_pred):
-    """
-    Calcula la exactitud (accuracy).
-    """
-    return np.mean(y_true == y_pred)
 
-def precision_custom(y_true, y_pred):
-    """
-    Calcula la precisión (precision).
-    """
-    TP = np.sum((y_true == 1) & (y_pred == 1))
-    FP = np.sum((y_true == 0) & (y_pred == 1))
-    return TP / (TP + FP) if (TP + FP) > 0 else 0
+def accuracy_score(y_true, y_pred):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    
+    y_pred_classes = np.argmax(y_pred, axis=1)
+    correct_predictions = np.sum(y_true == y_pred_classes)
+    return round(correct_predictions / len(y_true),3)
 
-def recall_custom(y_true, y_pred):
-    """
-    Calcula el recall.
-    """
-    TP = np.sum((y_true == 1) & (y_pred == 1))
-    FN = np.sum((y_true == 1) & (y_pred == 0))
-    return TP / (TP + FN) if (TP + FN) > 0 else 0
 
-def f1_score_custom(y_true, y_pred):
-    """
-    Calcula el F1-Score.
-    """
-    precision = precision_custom(y_true, y_pred)
-    recall = recall_custom(y_true, y_pred)
-    return 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+def precision_score(y_true, y_pred):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    y_true.reshape(-1,1)
+    
+    y_pred_classes = np.argmax(y_pred, axis=1)
+    
+    tp = np.sum((y_true == 1) & (y_pred_classes == 1))
+    fp = np.sum((y_true == 0) & (y_pred_classes == 1))
+    return round(tp / (tp + fp),3) if (tp + fp) > 0 else 0
+
+def recall_score(y_true, y_pred):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    y_true.reshape(-1,1)
+    
+    y_pred_classes = np.argmax(y_pred, axis=1)
+    
+    tp = np.sum((y_true == 1) & (y_pred_classes == 1))
+    fn = np.sum((y_true == 1) & (y_pred_classes == 0))
+    return round(tp / (tp + fn),3) if (tp + fn) > 0 else 0
+
+
+def f1_score(y_true, y_pred):
+    precision = precision_score(y_true, y_pred)
+    recall = recall_score(y_true, y_pred)
+    return round(2 * (precision * recall) / (precision + recall),2) if (precision + recall) > 0 else 0
+
 
 def roc_curve_custom(y_true, y_prob):
+    y_true = np.asarray(y_true)
+    y_true.reshape(-1,1)
     """
     Calcula la curva ROC.
     """
+
     thresholds = np.sort(np.unique(y_prob))[::-1]
     TPR = []  # True Positive Rate
     FPR = []  # False Positive Rate
 
     for thresh in thresholds:
         y_pred = (y_prob >= thresh).astype(int)
+        
         TP = np.sum((y_true == 1) & (y_pred == 1))
         FN = np.sum((y_true == 1) & (y_pred == 0))
         FP = np.sum((y_true == 0) & (y_pred == 1))
@@ -68,6 +91,8 @@ def auc_custom(x, y):
     return np.trapz(y, x)
 
 def precision_recall_curve_custom(y_true, y_prob):
+    y_true = np.asarray(y_true)
+    y_true.reshape(-1,1)
     """
     Calcula la curva de precisión-recall.
     """
@@ -77,36 +102,48 @@ def precision_recall_curve_custom(y_true, y_prob):
     
     for thresh in thresholds:
         y_pred = (y_prob >= thresh).astype(int)
-        precision = precision_custom(y_true, y_pred)
-        recall = recall_custom(y_true, y_pred)
+        precision = precision_score(y_true, y_pred)
+        recall = recall_score(y_true, y_pred)
         precision_vals.append(precision)
         recall_vals.append(recall)
     
     return np.array(recall_vals), np.array(precision_vals)
 
+
+
+def plot_confusion_matrix(conf_matrix, class_names):
+    """
+    Plotea la matriz de confusión utilizando seaborn y matplotlib.
+    conf_matrix: Matriz de confusión
+    class_names: Lista con los nombres de las clases
+    """
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', 
+                xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicción')
+    plt.ylabel('Real')
+    plt.title('Matriz de Confusión')
+    plt.show()
+
+
 # Función principal para calcular y graficar las métricas
 def calculate_metrics_custom(y_true, y_pred, y_prob):
-    # Matriz de confusión
-    cm = confusion_matrix_custom(y_true, y_pred)
-    print("Matriz de Confusión:")
-    print(cm)
-
     # Exactitud (Accuracy)
-    accuracy = accuracy_custom(y_true, y_pred)
+    accuracy = accuracy_score(y_true, y_pred)
     print(f"\nExactitud (Accuracy): {accuracy:.4f}")
 
     # Precisión (Precision)
-    precision = precision_custom(y_true, y_pred)
+    precision = precision_score(y_true, y_pred)
     print(f"Precisión (Precision): {precision:.4f}")
 
     # Recall
-    recall = recall_custom(y_true, y_pred)
+    recall = recall_score(y_true, y_pred)
     print(f"Recall: {recall:.4f}")
 
     # F1-Score
-    f1 = f1_score_custom(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred)
     print(f"F1-Score: {f1:.4f}")
-    
+    '''
     # Curva ROC y AUC-ROC
     fpr, tpr = roc_curve_custom(y_true, y_prob)
     auc_roc = auc_custom(fpr, tpr)
@@ -139,4 +176,5 @@ def calculate_metrics_custom(y_true, y_pred, y_prob):
     plt.title('Curva PR')
     plt.legend(loc="lower left")
     plt.show()
+    '''
 

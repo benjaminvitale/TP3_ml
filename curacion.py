@@ -1,7 +1,7 @@
 import csv
 import random
 from imblearn.over_sampling import SMOTE 
-
+import numpy as np
 Data_1 = []
 Data_2 = []
 Data_3 = []
@@ -81,3 +81,33 @@ with open('breast_cancer_data/breast_cancer_test.csv', mode='r', newline='') as 
 for i in range(len(Data_test)):
     for j in range(6):
         Data_test[i][j] = float(Data_test[i][j])
+
+def min_max_scaling(X):
+    vals_min = []
+    vals_max = []
+
+    min_val = np.min(X, axis=0)
+    max_val = np.max(X, axis=0)
+    vals_min.append(min_val)
+    vals_max.append(max_val)
+    
+    # Evitar división por cero
+    range_val = max_val - min_val
+    range_val[range_val == 0] = 1
+    
+    X_scaled = (X - min_val) / range_val
+    return X_scaled,np.array(vals_min),np.array(vals_max)
+
+def normalize_test(X,vals_min,vals_max):
+    X_scaled = (X - vals_min) / (vals_max - vals_min)
+    return X_scaled
+
+Data_1,min_1,max_1 = min_max_scaling(Data_1)
+Data_2,min_2,max_2 = min_max_scaling(Data_2)
+Data_3,min_3,max_3 = min_max_scaling(Data_3)
+Data_4,min_4,max_4 = min_max_scaling(Data_4)
+
+Data_test1 = normalize_test(Data_test,min_1,max_1)
+Data_test2 = normalize_test(Data_test,min_2,max_2)
+Data_test3 = normalize_test(Data_test,min_3,max_3)
+Data_test4 = normalize_test(Data_test,min_4,max_4)

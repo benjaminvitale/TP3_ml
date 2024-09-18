@@ -11,7 +11,6 @@ def confusion_matrix(y_true, y_pred):
     y_true = np.asarray(y_true)
     y_true.reshape(-1,1)
     y_pred = np.asarray(y_pred)
-    
     y_pred_classes = np.argmax(y_pred, axis=1)
     
     tp = np.sum((y_true == 1) & (y_pred_classes == 1))
@@ -36,7 +35,7 @@ def precision_score(y_true, y_pred):
     y_pred = np.asarray(y_pred)
     y_true.reshape(-1,1)
     
-    y_pred_classes = np.argmax(y_pred, axis=1)
+    y_pred_classes = np.argmax(y_pred,axis=1)
     
     tp = np.sum((y_true == 1) & (y_pred_classes == 1))
     fp = np.sum((y_true == 0) & (y_pred_classes == 1))
@@ -47,7 +46,7 @@ def recall_score(y_true, y_pred):
     y_pred = np.asarray(y_pred)
     y_true.reshape(-1,1)
     
-    y_pred_classes = np.argmax(y_pred, axis=1)
+    y_pred_classes = np.argmax(y_pred,axis=1)
     
     tp = np.sum((y_true == 1) & (y_pred_classes == 1))
     fn = np.sum((y_true == 1) & (y_pred_classes == 0))
@@ -127,32 +126,14 @@ def plot_confusion_matrix(conf_matrix, class_names):
 
 
 # Función principal para calcular y graficar las métricas
-def calculate_metrics_custom(y_true, y_pred, y_prob):
-    # Exactitud (Accuracy)
-    accuracy = accuracy_score(y_true, y_pred)
-    print(f"\nExactitud (Accuracy): {accuracy:.4f}")
-
-    # Precisión (Precision)
-    precision = precision_score(y_true, y_pred)
-    print(f"Precisión (Precision): {precision:.4f}")
-
-    # Recall
-    recall = recall_score(y_true, y_pred)
-    print(f"Recall: {recall:.4f}")
-
-    # F1-Score
-    f1 = f1_score(y_true, y_pred)
-    print(f"F1-Score: {f1:.4f}")
-    '''
+def calculate_metrics_custom(y_true,y_prob):
     # Curva ROC y AUC-ROC
     fpr, tpr = roc_curve_custom(y_true, y_prob)
     auc_roc = auc_custom(fpr, tpr)
-    print(f"\nAUC-ROC: {auc_roc:.4f}")
     
     # Curva PR y AUC-PR
     recall_vals, precision_vals = precision_recall_curve_custom(y_true, y_prob)
     auc_pr = auc_custom(recall_vals, precision_vals)
-    print(f"AUC-PR: {auc_pr:.4f}")
     
     # Graficar Curva ROC
     plt.figure()
@@ -176,5 +157,5 @@ def calculate_metrics_custom(y_true, y_pred, y_prob):
     plt.title('Curva PR')
     plt.legend(loc="lower left")
     plt.show()
-    '''
+    
 

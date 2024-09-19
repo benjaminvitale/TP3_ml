@@ -1,5 +1,6 @@
 import csv 
 import numpy as np
+from imblearn.over_sampling import SMOTE 
 
 
 
@@ -13,19 +14,21 @@ def open_csv(direccion):
         
         for row in csv_reader:
             if i != 0:
-                Datas.append(row[:-1])
-                y.append(float(row[-1]))
+                Datas.append(row[1:])
+                y.append(int(float(row[0])))
 
 
             i += 1
         for row in range(len(Datas)):
-            for j in range(len(row)):
+            for j in range(len(Datas[0])):
                 Datas[row][j] = float(Datas[row][j])
         return Datas,y
 
-X_dev,Y_dev = open_csv('diabetes_data/diabetes_dev.csv')
-X_test,Y_test = open_csv('diabetes_data/diabetes_test.csv')
+X_dev,Y_dev = open_csv('Problema_2/diabetes_data/diabetes_dev.csv')
+X_test,Y_test = open_csv('Problema_2/diabetes_data/diabetes_test.csv')
 
+#smote = SMOTE(sampling_strategy='auto', random_state=42)
+#X_dev,Y_dev = smote.fit_resample(X_dev, Y_dev)
 def min_max_scaling(X):
     vals_min = []
     vals_max = []

@@ -4,52 +4,88 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 
 
+import numpy as np
+
+import numpy as np
+
 class LDA:
     def __init__(self):
-        self.means_ = {}
-        self.priors_ = {}
-        self.covariance_ = None
-    
+        self.means_ = None  # Media de cada clase
+        self.priors_ = None  # Probabilidad a priori de cada clase
+        self.covariance_ = None  # Matriz de covarianza compartida
+        self.classes_ = None  # Clases únicas en y
+
     def fit(self, X, y):
         """
-        Ajusta el modelo de LDA.
-        X: Matriz de características (n_samples, n_features)
+        Ajusta el modelo LDA a los datos.
+        X: Matriz de diseño (n_samples, n_features)
         y: Vector de etiquetas (n_samples,)
         """
-        # Identificar las clases
-        self.classes_ = np.unique(y)
+        n_samples, n_features = X.shape
+        self.classes_ = np.unique(y)  # Encuentra las clases únicas en y
         
-        # Calcular la media por cada clase
-        for c in self.classes_:
+        n_classes = len(self.classes_)
+
+        # Inicializar medias, covarianza y probabilidades a priori
+        self.means_ = np.zeros((n_classes, n_features))
+        self.covariance_ = np.zeros((n_features, n_features))
+        self.priors_ = np.zeros(n_classes)
+
+        # Calcular medias y probabilidades a priori
+        for idx, c in enumerate(self.classes_):
             X_c = X[y == c]
-            self.means_[c] = np.mean(X_c, axis=0)
-            self.priors_[c] = X_c.shape[0] / X.shape[0]
+            self.means_[idx, :] = np.mean(X_c, axis=0)
+            self.priors_[idx] = X_c.shape[0] / n_samples
         
         # Calcular la matriz de covarianza compartida
-        self.covariance_ = np.cov(X.T, bias=True)
-    
-    def _discriminant_function(self, x, mean, prior, covariance_inv):
+        for idx, c in enumerate(self.classes_):
+            X_c = X[y == c]
+            self.covariance_ += np.cov(X_c, rowvar=False) * (X_c.shape[0] - 1)
+
+        self.covariance_ /= (n_samples - n_classes)  # Covarianza ponderada
+
+    def _gaussian_density(self, X, mean, covariance):
+        """Calcula la densidad gaussiana para la distribución multivariada."""
+        n_features = X.shape[1]
+        cov_inv = np.linalg.inv(covariance)
+        norm_factor = np.sqrt((2 * np.pi) ** n_features * np.linalg.det(covariance))
+        diff = X - mean
+        exponent = -0.5 * np.sum(np.dot(diff, cov_inv) * diff, axis=1)
+        return np.exp(exponent) / norm_factor
+
+    def predict_proba(self, X):
         """
-        Calcula la función discriminante lineal para un punto x
+        Devuelve las probabilidades de pertenencia a cada clase (n_samples, n_classes)
+        X: Matriz de diseño (n_samples, n_features)
         """
-        return x.T @ covariance_inv @ mean - 0.5 * mean.T @ covariance_inv @ mean + np.log(prior)
-    
+        n_samples = X.shape[0]
+        n_classes = len(self.classes_)
+
+        posteriors = np.zeros((n_samples, n_classes))
+
+        for idx, c in enumerate(self.classes_):
+            prior = np.log(self.priors_[idx])
+            likelihood = self._gaussian_density(X, self.means_[idx], self.covariance_)
+            posteriors[:, idx] = prior + np.log(likelihood)
+
+        # Convertir las posteriors en probabilidades usando softmax
+        posteriors = np.exp(posteriors)
+        posteriors /= np.sum(posteriors, axis=1, keepdims=True)
+
+        return posteriors
+
     def predict(self, X):
         """
-        Predice las clases para cada muestra en X.
-        X: Matriz de características (n_samples, n_features)
+        Predice la clase más probable para cada muestra (n_samples,)
+        Devuelve un array de tamaño (n_samples,) con los valores 0, 1 o 2.
         """
-        covariance_inv = np.linalg.inv(self.covariance_)
-        predictions = []
-        
-        for x in X:
-            discriminants = []
-            for c in self.classes_:
-                d = self._discriminant_function(x, self.means_[c], self.priors_[c], covariance_inv)
-                discriminants.append(d)
-            predictions.append(self.classes_[np.argmax(discriminants)])
-        
-        return np.array(predictions)
+        posteriors = self.predict_proba(X)
+        predicted_classes = np.argmax(posteriors, axis=1)  # Devuelve la clase con la mayor probabilidad
+        for i in range(len(posteriors)):
+            if posteriors[i][1] > 0.06:
+                predicted_classes[i] = 1
+        return predicted_classes
+
 
 
 class Node():
@@ -64,10 +100,7 @@ class Node():
         self.right = None
 
 class DecisionTree():
-    def __init__(self, 
-                 max_depth=4, 
-                 min_samples_leaf=1, 
-                 min_information_gain=0.0) -> None:
+    def __init__(self,max_depth,min_samples_leaf, min_information_gain) -> None:
         """
         Constructor function for DecisionTree instance
         Inputs:
@@ -254,99 +287,30 @@ class DecisionTree():
         return preds   
 
 
-    # new
-    def plot_decision_tree(self, feature_names, fig_size=(12, 6)):
-        """
-        Plots the decision tree.
-        Inputs:
-            - feature_names (list): list of feature names.
-            - fig_size (tuple): size of the plot (default is (12, 6)).
-        """
-        def plot_node(node, depth, pos):
-            if node is None:
-                return
+
+class RandomForest:
+    def __init__(self, n_estimators=100, max_depth=4):
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.trees = []
+
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        for _ in range(self.n_estimators):
+            # Bootstrap sampling
+            indices = np.random.choice(n_features,n_features, replace=True)
+            X_sample = X[indices]
+            y_sample = y[indices]
             
-            # Plot the current node
-            plt.text(pos[0], pos[1], f"{feature_names[node.feature_idx]}\n<{node.feature_val}\nIG: {node.information_gain:.4f}",
-                    ha="center", va="center", bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3'))
+            # Create a decision tree and fit it
+            tree = DecisionTree(self.max_depth,1,0.0)
+            tree.train(X_sample, y_sample)
+            self.trees.append(tree)
 
-            # Calculate positions of children nodes
-            shift = 1.0 / (2**depth)
-            if node.left:
-                plt.plot([pos[0], pos[0] - shift], [pos[1], pos[1] - 1], 'k-')
-                plot_node(node.left, depth + 1, (pos[0] - shift, pos[1] - 1))
-            if node.right:
-                plt.plot([pos[0], pos[0] + shift], [pos[1], pos[1] - 1], 'k-')
-                plot_node(node.right, depth + 1, (pos[0] + shift, pos[1] - 1))
+    def predict(self, X):
+        # Get predictions from all trees
+        tree_preds = np.array([tree.predict(X) for tree in self.trees])
+        # Majority vote
+        return np.array([np.bincount(tree_preds[:, i]).argmax() for i in range(X.shape[0])])
 
-        # Create plot
-        plt.figure(figsize=fig_size)
-        plt.title("Decision Tree")
-
-        # Plot the tree starting from the root
-        plot_node(self.tree, depth=1, pos=(0.5, 1.0))
-
-        plt.axis('off')
-        plt.show() 
-        return
-    
-    def print_tree(self, node=None, depth=0):
-        """
-        Prints the decision tree.
-        """
-        if node is None:
-            node = self.tree
-
-        # Print node information
-        if node.feature_idx is not None:
-            print(f"{'|   ' * depth}Node: {depth}, Feature: {node.feature_idx}, Threshold: {node.feature_val:.4f}, Information Gain: {node.information_gain:.4f}")
-        else:
-            print(f"{'|   ' * depth}Leaf: {node.prediction_probs}")
-
-        # Recursively print left and right subtrees
-        if node.left:
-            self.print_tree(node.left, depth + 1)
-        if node.right:
-            self.print_tree(node.right, depth + 1)
-        return
-    
-    def plot_feature_importance(self, feature_names):
-        """
-        Plots the feature importance based on the information gain across the nodes.
-        Inputs:
-            - feature_names (list): list of feature names.
-        """
-        def compute_feature_importance(node, importance_dict):
-            if node is None:
-                return
-            
-            # Aggregate feature importance
-            if node.feature_idx is not None:
-                if node.feature_idx in importance_dict:
-                    importance_dict[node.feature_idx] += node.feature_importance
-                else:
-                    importance_dict[node.feature_idx] = node.feature_importance
-            
-            # Recursively compute for left and right children
-            compute_feature_importance(node.left, importance_dict)
-            compute_feature_importance(node.right, importance_dict)
-        
-        importance_dict = {}
-        compute_feature_importance(self.tree, importance_dict)
-
-        # Normalize importance
-        total_importance = sum(importance_dict.values())
-        feature_importances = {feature_names[idx]: importance / total_importance for idx, importance in importance_dict.items()}
-
-        # Sort and plot
-        sorted_importance = sorted(feature_importances.items(), key=lambda item: item[1], reverse=True)
-        labels, values = zip(*sorted_importance)
-        
-        plt.figure(figsize=(10, 6))
-        plt.bar(labels, values)
-        plt.xlabel('Features')
-        plt.ylabel('Importance')
-        plt.title('Feature Importance')
-        plt.show()
-        return
 

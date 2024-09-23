@@ -1,7 +1,7 @@
 import csv
 import random
-from imblearn.over_sampling import SMOTE 
 import numpy as np
+import smote as sm
 Data_1 = []
 Data_2 = []
 Data_3 = []
@@ -47,12 +47,14 @@ for i in target_1:
     if i == 1:
         cont2 += 1
 while len(Data_2) > 172:
+    #undersampling 
     i = random.randint(0,len(Data_2)-1)
     if target_2[i] == 0:
         Data_2.pop(i)
         target_2.pop(i)
         
 while len(Data_3) < 776:
+    #oversampling duplicate
     i = random.randint(0,len(Data_3)-1)
     if target_3[i] == 1:
         Data_3.append(Data_3[i])
@@ -71,8 +73,9 @@ for i in range(len(Data_2)):
     for j in range(6):
         Data_2[i][j] = float(Data_2[i][j])
 
-smote = SMOTE(sampling_strategy='auto', random_state=42)
-Data_4, target_4 = smote.fit_resample(Data_4, target_4)
+
+#oversampling smote
+Data_4, target_4 = sm.smote(np.array(Data_4), np.array(target_4))
 
 test = open_csv('breast_cancer_data/breast_cancer_test.csv')
 for row in test:

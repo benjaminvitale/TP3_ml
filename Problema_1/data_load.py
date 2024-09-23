@@ -96,9 +96,35 @@ acc = []
 precision = []
 recall = []
 f_score = []
+auc_pr = []
+auc_roc = []
+names = ['Sin rebalanceo', 'Undersampling', 'Oversampling Duplicate', 'Oversampling Smote', 'Cost re weighting']
 def mostrar_datos():
+    print("Sin rebalanceo:")
+    x = mt.get_metrics(target_test,y_proba1)
+    auc_pr.append(x[0])
+    auc_roc.append(x[1])
+
+    print("Undersampling:")
+    x = mt.get_metrics(target_test,y_proba2)
+    auc_pr.append(x[0])
+    auc_roc.append(x[1])
+    print("Oversampling Duplicate:")
+    x = mt.get_metrics(target_test,y_proba3)
+    auc_pr.append(x[0])
+    auc_roc.append(x[1])
+    print("Oversampling Smote:")
+    x = mt.get_metrics(target_test,y_proba4)
+    auc_pr.append(x[0])
+    auc_roc.append(x[1])
+    print("Weighted Classes:")
+    x = mt.get_metrics(target_test,y_proba5)
+    auc_pr.append(x[0])
+    auc_roc.append(x[1])
+    counter = 0
     for i in y:
-        mt.plot_confusion_matrix(mt.confusion_matrix(target_test, i[0]), ["1", "0"])
+        mt.plot_confusion_matrix(mt.confusion_matrix(target_test, i[0]), ["1", "0"],names[counter])
+        counter += 1
         #mt.calculate_metrics_custom(target_test,i[1])
         acc.append(mt.accuracy_score(target_test,i[0]))
         precision.append(mt.precision_score(target_test,i[0]))
@@ -117,7 +143,9 @@ def mostrar_datos():
         'Accuracy': acc,
         'Precision': precision,
         'Recall': recall,
-        'F-Score': f_score
+        'F-Score': f_score,
+        'auc-pr': auc_pr,
+        'auc-roc': auc_roc
     }
     # Crear el DataFrame
     df = pd.DataFrame(data)

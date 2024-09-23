@@ -100,7 +100,7 @@ class Node():
         self.right = None
 
 class DecisionTree():
-    def __init__(self,max_depth,min_samples_leaf, min_information_gain) -> None:
+    def __init__(self,max_depth,min_samples_leaf, min_information_gain,min_part_entropy) -> None:
         """
         Constructor function for DecisionTree instance
         Inputs:
@@ -113,6 +113,7 @@ class DecisionTree():
         self.max_depth = max_depth
         self.min_samples_leaf = min_samples_leaf
         self.min_information_gain = min_information_gain
+        self.min_part_entropy = min_part_entropy
 
     def entropy(self, class_probabilities: list) -> float: #esto podria ser indice de gini o chi cuadrado tambien
         return sum([-p * np.log2(p) for p in class_probabilities if p>0])
@@ -273,6 +274,9 @@ class DecisionTree():
         """
         Returns the predicted probs for a given data set
         """
+        if len(X_set.shape) == 1:
+        # Si X_set es un array unidimensional, asegúrate de que tenga la forma correcta
+            X_set = X_set.reshape(1, -1)
         pred_probs = np.apply_along_axis(self.predict_one_sample, 1, X_set)
         
         return pred_probs
@@ -282,35 +286,167 @@ class DecisionTree():
         Returns the predicted labels for a given data set
         """
         pred_probs = self.predict_proba(X_set)
+
         preds = np.argmax(pred_probs, axis=1)
         
         return preds   
 
 
 
+
 class RandomForest:
-    def __init__(self, n_estimators=100, max_depth=4):
+    def __init__(self, n_estimators, max_depth,min_sample_leaf,min_information_gain,entropy):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
+        self.min_sample_leaf = min_sample_leaf
+        self.min_information_gain = min_information_gain
+        self.entropy = entropy
+        
         self.trees = []
 
     def fit(self, X, y):
         n_samples, n_features = X.shape
         for _ in range(self.n_estimators):
             # Bootstrap sampling
-            indices = np.random.choice(n_features,n_features, replace=True)
+            indices = np.random.choice(n_samples, n_samples, replace=True)  # Cambiar a n_samples
             X_sample = X[indices]
             y_sample = y[indices]
             
-            # Create a decision tree and fit it
-            tree = DecisionTree(self.max_depth,1,0.0)
+            # Crear un árbol de decisión y ajustar
+            tree = DecisionTree(self.max_depth, self.min_sample_leaf, self.min_information_gain, self.entropy)
             tree.train(X_sample, y_sample)
             self.trees.append(tree)
+
 
     def predict(self, X):
         # Get predictions from all trees
         tree_preds = np.array([tree.predict(X) for tree in self.trees])
         # Majority vote
+        #print(tree_preds.shape)
         return np.array([np.bincount(tree_preds[:, i]).argmax() for i in range(X.shape[0])])
 
+    def predict_proba(self, X):
+        """
+        Calcula las probabilidades de pertenecer a cada clase para cada ejemplo en X.
+        X: matriz de datos (n_samples, n_features)
+        Return: matriz (n_samples, n_classes) de probabilidades para cada clase
+        """
+        # Obtener las predicciones de todos los árboles
+        tree_preds = np.array([tree.predict(X) for tree in self.trees])  # (n_estimators, n_samples)
+        
+        # Número de clases distintas
+        n_classes = 3
+        # Inicializar la matriz de probabilidades
+        proba_matrix = np.zeros((X.shape[0], n_classes))
+        
+        # Contar las predicciones para cada clase
+        for i in range(X.shape[0]):
+            class_counts = np.bincount(tree_preds[:, i], minlength=n_classes)  # Contar ocurrencias de cada clase
+            proba_matrix[i, :] = class_counts / self.n_estimators  # Normalizar para obtener las probabilidades
 
+        return proba_matrix
+
+class LogisticRegressionMulticlass:
+    def __init__(self, max_iter, learning_rate, l2):
+        """
+        max_iter: max number of iterations for gradient descent
+        learning_rate: learning rate for gradient descent
+        l2: L2 regularization term
+        """
+        self.max_iter = max_iter
+        self.learning_rate = learning_rate
+        self.l2 = l2
+        self.classifiers = []  # Lista de clasificadores binarios, uno por clase
+
+    def _sigmoid(self, z):
+        """
+        Sigmoid function to transform inputs into probabilities.
+        z: scalar or numpy array
+        """
+        return 1 / (1 + np.exp(-z))
+    
+    def _add_intercept(self, X):
+        """
+        Adds column of 1s to X for the intercept (bias) term.
+        X: input feature matrix
+        """
+        return np.c_[np.ones(X.shape[0]), X]
+    
+    def fit(self, X, y, class_weights=None):
+        """
+        Fits the logistic regression model to the data points using One-vs-Rest strategy.
+        X: design matrix (n_samples, n_features)
+        y: labels vector (n_samples,)
+        class_weights: dictionary of class weights, for rebalancing
+        """
+        X = np.array(X)
+        X = self._add_intercept(X)
+        y = np.array(y)
+        
+        self.classes_ = np.unique(y)  # Identificar las clases únicas en los datos
+        n_classes = len(self.classes_)
+        n_features = X.shape[1]
+        
+        # Crear un clasificador binario por cada clase
+        self.classifiers = []
+
+        for class_idx in self.classes_:
+            # Inicializar coeficientes para esta clase
+            coef_ = np.zeros(n_features)
+            for _ in range(self.max_iter):
+                # Crear etiquetas binarias: 1 si es la clase actual, 0 de lo contrario
+                y_binary = (y == class_idx).astype(int)
+
+                # Predicción de probabilidad
+                z = np.dot(X, coef_)
+                y_hat = self._sigmoid(z)
+                
+                # Factor de re-balanceo si se especifica
+                if class_weights is not None and class_idx in class_weights:
+                    pi_1 = np.mean(y_binary == 1)
+                    pi_2 = np.mean(y_binary == 0)
+                    C = pi_2 / pi_1 if pi_1 > 0 else 1
+                    weights = np.where(y_binary == 1, C, 1)
+                else:
+                    weights = np.ones(y_binary.shape)
+
+                # Gradiente de la función de pérdida con regularización L2
+                gradient = np.dot(X.T, weights * (y_hat - y_binary)) / y.size
+                gradient[1:] += (self.l2 / y.size) * coef_[1:]  # L2 regularization
+
+                # Actualizar los coeficientes
+                coef_ -= self.learning_rate * gradient
+
+            # Guardar los coeficientes del modelo para esta clase
+            self.classifiers.append(coef_)
+
+    def predict_proba(self, X):
+        """
+        Predicts probabilities for each class for inputs X using the trained classifiers.
+        X: design matrix (n_samples, n_features)
+        """
+        X = self._add_intercept(X)
+        
+        # Obtener las probabilidades para cada clase
+        probas = np.array([self._sigmoid(np.dot(X, coef)) for coef in self.classifiers]).T
+        
+        return probas
+
+    def predict(self, X):
+        """
+        Predicts the class for the inputs X using the trained classifiers.
+        X: design matrix (n_samples, n_features)
+        """
+        probas = self.predict_proba(X)
+        
+        # Elegir la clase con la mayor probabilidad predicha
+        n= []
+        for i in probas:
+            if i[1] >= 0.09:
+                n.append(1)
+            if i[2] >= 0.4 and i[1] < 0.09:
+                n.append(2)
+            if i[1] < 0.09 and i[2] < 0.4:
+                n.append(0)
+        #return np.argmax(probas, axis=1)
+        return n

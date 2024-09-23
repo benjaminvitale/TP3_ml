@@ -1,6 +1,6 @@
 import csv 
 import numpy as np
-from imblearn.over_sampling import SMOTE 
+import random
 
 
 
@@ -24,8 +24,9 @@ def open_csv(direccion):
                 Datas[row][j] = float(Datas[row][j])
         return Datas,y
 
-X_dev,Y_dev = open_csv('Problema_2/diabetes_data/diabetes_dev.csv')
-X_test,Y_test = open_csv('Problema_2/diabetes_data/diabetes_test.csv')
+
+X_dev,Y_dev = open_csv('diabetes_data/diabetes_dev.csv')
+X_test,Y_test = open_csv('diabetes_data/diabetes_test.csv')
 
 #smote = SMOTE(sampling_strategy='auto', random_state=42)
 #X_dev,Y_dev = smote.fit_resample(X_dev, Y_dev)
@@ -49,5 +50,17 @@ def normalize_test(X,vals_min,vals_max):
     X_scaled = (X - vals_min) / (vals_max - vals_min)
     return X_scaled
 
+while len(X_dev) > 75000:
+    #undersampling 
+    i = random.randint(0,len(X_dev)-1)
+    if Y_dev[i] == 0:
+        X_dev.pop(i)
+        Y_dev.pop(i)
+
+    
+    
 X_dev,min,max = min_max_scaling(X_dev)
 X_test = normalize_test(X_test,min,max)
+#X_dev,Y_dev = sm2.smote(np.array(X_dev),np.array(Y_dev))
+
+

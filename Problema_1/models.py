@@ -73,9 +73,9 @@ class LogisticRegression:
         X = self._add_intercept(X)
         prob_positive = self._sigmoid(np.dot(X, np.r_[self.intercept_, self.coef_]))
         
-        """prob_negative = 1 - prob_positive
-        return np.vstack((prob_negative, prob_positive)).T"""
-        return prob_positive
+        prob_negative = 1 - prob_positive
+        return np.vstack((prob_negative, prob_positive)).T
+        #return prob_positive
     def predict(self, X):
         n = []
         """
@@ -83,8 +83,8 @@ class LogisticRegression:
         X: design matrix (n_samples, n_features)
         """
         probas = self.predict_proba(X)
-        prob_negative = 1 - probas
-        n = np.vstack((prob_negative, probas)).T
+        #prob_negative = 1 - probas
+        #n = np.vstack((prob_negative, probas)).T
         """
         for i in probas:
             if i[0] >= self.threshold:
@@ -92,4 +92,4 @@ class LogisticRegression:
             else: 
                 n.append(0)
         return n"""
-        return (n >= self.threshold).astype(int)
+        return (probas >= self.threshold).astype(int)

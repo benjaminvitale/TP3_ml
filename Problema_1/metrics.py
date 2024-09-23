@@ -110,7 +110,7 @@ def precision_recall_curve_custom(y_true, y_prob):
 
 
 
-def plot_confusion_matrix(conf_matrix, class_names):
+def plot_confusion_matrix(conf_matrix, class_names, tittle):
     """
     Plotea la matriz de confusión utilizando seaborn y matplotlib.
     conf_matrix: Matriz de confusión
@@ -121,41 +121,100 @@ def plot_confusion_matrix(conf_matrix, class_names):
                 xticklabels=class_names, yticklabels=class_names)
     plt.xlabel('Predicción')
     plt.ylabel('Real')
-    plt.title('Matriz de Confusión')
+    plt.title('Matriz de Confusión' + tittle)
     plt.show()
 
 
-# Función principal para calcular y graficar las métricas
-def calculate_metrics_custom(y_true,y_prob):
-    # Curva ROC y AUC-ROC
-    fpr, tpr = roc_curve_custom(y_true, y_prob)
-    auc_roc = auc_custom(fpr, tpr)
+
+
+
+
+def compute_roc_curve(y_true, y_proba):
+
+    thresholds = np.sort(np.unique(y_proba))[::-1]  # Ordenar umbrales de mayor a menor
+    tpr_list = []  # True Positive Rate
+    fpr_list = []  # False Positive Rate
     
-    # Curva PR y AUC-PR
-    recall_vals, precision_vals = precision_recall_curve_custom(y_true, y_prob)
-    auc_pr = auc_custom(recall_vals, precision_vals)
+    for threshold in thresholds:
+        y_pred = (y_proba >= threshold).astype(int)  # Predicciones binarizadas con el umbral actual
+        tp = np.sum((y_pred == 1) & (y_true == 1))  # True Positives
+        fp = np.sum((y_pred == 1) & (y_true == 0))  # False Positives
+        fn = np.sum((y_pred == 0) & (y_true == 1))  # False Negatives
+        tn = np.sum((y_pred == 0) & (y_true == 0))  # True Negatives
+        
+        tpr = tp / (tp + fn) if (tp + fn) > 0 else 0  # Sensibilidad o TPR
+        fpr = fp / (fp + tn) if (fp + tn) > 0 else 0  # FPR
+        
+        tpr_list.append(tpr)
+        fpr_list.append(fpr)
     
-    # Graficar Curva ROC
-    plt.figure()
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'Curva ROC (AUC = {auc_roc:.2f})')
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('Tasa de Falsos Positivos (False Positive Rate)')
-    plt.ylabel('Tasa de Verdaderos Positivos (True Positive Rate)')
-    plt.title('Curva ROC')
-    plt.legend(loc="lower right")
+    return np.array(fpr_list), np.array(tpr_list), thresholds
+
+def compute_auc(x, y):
+
+    return np.trapz(y, x)  # Calcula el área usando la regla del trapecio
+
+def compute_precision_recall_curve(y_true, y_proba):
+
+    thresholds = np.sort(np.unique(y_proba))[::-1]  # Ordenar umbrales de mayor a menor
+    precision_list = []
+    recall_list = []
+    
+    for threshold in thresholds:
+        y_pred = (y_proba >= threshold).astype(int)  # Predicciones binarizadas con el umbral actual
+        tp = np.sum((y_pred == 1) & (y_true == 1))  # True Positives
+        fp = np.sum((y_pred == 1) & (y_true == 0))  # False Positives
+        fn = np.sum((y_pred == 0) & (y_true == 1))  # False Negatives
+        
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0  # Precision
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0  # Recall
+        
+        precision_list.append(precision)
+        recall_list.append(recall)
+    
+    return np.array(recall_list), np.array(precision_list), thresholds
+
+def get_metrics(y_true, y_proba):
+    y_proba_positive = y_proba[:, 1] 
+
+    # ROC
+    fpr, tpr, roc_thresholds = compute_roc_curve(y_true, y_proba_positive)
+    auc_roc = compute_auc(fpr, tpr)
+
+    # Precision-Recall
+    recall, precision, pr_thresholds = compute_precision_recall_curve(y_true, y_proba_positive)
+    auc_pr = compute_auc(recall, precision)
+
+    # Resultados
+    metrics = {
+        "ROC_curve": (fpr, tpr, roc_thresholds),
+        "AUC_ROC": auc_roc,
+        "PR_curve": (recall, precision, pr_thresholds),
+        "AUC_PR": auc_pr
+    }
+
+    # ROC Curve
+    fpr, tpr, _ = metrics["ROC_curve"]
+    plt.plot(fpr, tpr, label=f"ROC Curve (AUC = {metrics['AUC_ROC']:.2f})")
+    plt.xlabel("False Positive Rate (FPR)")
+    plt.ylabel("True Positive Rate (TPR)")
+    plt.title("ROC Curve")
+    plt.legend()
     plt.show()
 
-    # Graficar Curva PR
-    plt.figure()
-    plt.plot(recall_vals, precision_vals, color='blue', lw=2, label=f'Curva PR (AUC = {auc_pr:.2f})')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('Recall')
-    plt.ylabel('Precisión (Precision)')
-    plt.title('Curva PR')
-    plt.legend(loc="lower left")
+    # PR Curve
+    recall, precision, _ = metrics["PR_curve"]
+    plt.plot(recall, precision, label=f"PR Curve (AUC = {metrics['AUC_PR']:.2f})")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Precision-Recall Curve")
+    plt.legend()
     plt.show()
-    
+    return metrics["AUC_PR"],metrics["AUC_ROC"]
+        
 
+
+
+
+   
+ 
